@@ -42,5 +42,6 @@ and all the typical hyperparameters needed for model training like learning rate
     - Your AWS account must support the role *ecr:InitiateLayerUpload* to push the docker image this creates 
 
 ## [Data organization](data.md)
+## [How to run locally](run_aws.md)
 ## [How to run in AWS](run_aws.md)
 ## [License](http://www.gnu.org/licenses/gpl-3.0.en.html)

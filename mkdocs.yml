@@ -16,7 +16,8 @@ nav:
   - MBARI Documentation: https://docs.mbari.org/
   - About: index.md
   - Installation: install.md
-  - How to use: run_aws.md
+  - How to use in AWS: run_aws.md
+  - How to use locally: run_local.md
   - Arguments: arguments.md
   - Change Log: CHANGELOG.md
 
