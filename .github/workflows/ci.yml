@@ -1,0 +1,67 @@
+# Credit to this blog for part of this CI
+#  https://mestrak.com/blog/semantic-release-with-python-poetry-github-actions-20nn
+name: CI
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  Release:
+    name: Creates a release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && !contains(github.event.head_commit.message, 'chore(release):')
+    continue-on-error: false
+    steps:
+    - name: Semantic Release
+      run: |
+        pip install python-semantic-release
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        semantic-release publish
+    - uses: actions/checkout@v3
+      id: version
+      with:
+        fetch-depth: 0
+    - name: Get docker tag
+      run: |
+        tag_v=$(git describe --tags $(git rev-list --tags --max-count=1))
+        tag=$(echo $tag_v | sed 's/v//')
+        if [[ $tag =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+          tag="latest"
+        fi
+        echo "Setting TAG=${tag}"
+        echo "TAG=${tag}" >> $GITHUB_ENV
+    - uses: actions/setup-python@v4
+      with:
+       python-version: "3.8"
+    - uses: actions/checkout@v3
+      id: version
+      with:
+        fetch-depth: 0
+    - name: Get docker tag
+      run: |
+        tag_v=$(git describe --tags $(git rev-list --tags --max-count=1))
+        tag=$(echo $tag_v | sed 's/v//')
+        if [[ $tag =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+          tag="latest"
+        fi
+        echo "Setting TAG=${tag}"
+        echo "TAG=${tag}" >> $GITHUB_ENV
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        push: true
+        tags: |
+          mbari/kclassify:${{ env.TAG }}
+          mbari/kclassify:latest
+        labels: |
+          IMAGE_URI=mbari/kclassify
