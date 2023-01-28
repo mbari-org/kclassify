@@ -1,0 +1,13 @@
+tensorflow-addons==0.16.1
+matplotlib==3.3.4
+opencv-python==4.5.3.56
+pillow==8.3.2
+boto3
+scipy
+scikit-image
+scikit-learn
+numpy==1.23.3
+tensorflow-model-optimization
+pandas
+progressbar2
+wandb==0.12.0

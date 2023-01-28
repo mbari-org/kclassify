@@ -1,0 +1,11 @@
+name: kclassify
+channels:
+  - conda-forge
+  - tensorflow
+dependencies:
+  - pip>=20.1.1
+  - python>=3.8,<3.10
+  - numba
+  - tensorflow=2.6.0
+  - pip:
+    - -r requirements.txt
