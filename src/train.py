@@ -28,10 +28,12 @@ import tempfile
 import tarfile
 import json
 import codecs
+import cv2
 import numpy as np
 import wandb
 import tensorflow as tf
 import tensorflow_addons as tfa
+from PIL import Image
 from tensorflow.keras.callbacks import ModelCheckpoint
 from transfer_model import TransferModel
 from wandb.keras import WandbCallback
@@ -135,8 +137,7 @@ class Train:
                                                                 warmup_proportion=0.1,
                                                                 min_lr=1e-5,
                                                             ),
-                          metrics=[metric_type],
-                          run_eagerly=True)
+                          metrics=[metric_type])
 
         elif optimizer == 'ranger':
             opt = tfa.optimizers.Lookahead(RAdam(lr=lr), k, slow_step_size=0.5)
@@ -239,8 +240,6 @@ class Train:
                                   zoom_range=args.augment_range,
                                   featurewise_center=True,
                                   featurewise_std_normalization=True)
-            if 'mean' not in conf_dict.keys() or 'std' not in conf_dict.keys() :
-                raise Exception(f'Need to define the mean/std for featurewise_normalize in a config.json')
         else:
             generator_args = dict(preprocessing_function=eval(cfg['preprocessor']),
                                   rotation_range=args.rotation_range,
@@ -249,12 +248,6 @@ class Train:
                                   zoom_range=args.augment_range) 
 
         data_gen = tf.keras.preprocessing.image.ImageDataGenerator(generator_args)
-
-        if args.featurewise_normalize:
-            mean = asarray(conf_dict['mean'], dtype=np.float32)  # [R, G, B] order
-            std = asarray(conf_dict['std'], dtype=np.float32)
-            data_gen.mean = mean
-            data_gen.std = std
 
         train_path = self._output_path / 'train'
         val_path = self._output_path / 'val'
@@ -275,6 +268,23 @@ class Train:
             unpack(val_path, args.eval)
         except Exception as ex:
             raise (ex)
+
+        if args.featurewise_normalize:
+            train_images = [f.as_posix() for f in train_path.rglob('*.*')]
+            images = []
+
+            for image_file in train_images:
+                img = cv2.imread(image_file)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+                images.append(img)
+
+            if len(images) == 0:
+                warn(f'No images in {train_path}')
+            train_data = np.array(images)
+            
+            data_gen.fit(train_data)
+            mean = np.array(data_gen.mean)
+            std = np.array(data_gen.std)
 
         model, image_size = TransferModel(args.base_model, args.dropout, args.l2_weight_decay_alpha).build(class_size)
 
@@ -337,9 +347,8 @@ class Train:
         print(confusion_matrix(validation_generator.classes, y_pred))
         report = classification_report(validation_generator.classes, y_pred, target_names=classes, output_dict=True)
         print(report)
-        df = pd.DataFrame(report).transpose()
-        auc = sklearn.metrics.roc_auc_score(validation_generator.classes, y_pred, labels=classes)
-        f1 = sklearn.metrics.f1_score(validation_generator.classes, y_pred, labels=classes)
+        auc = sklearn.metrics.roc_auc_score(validation_generator.classes, pred, multi_class='ovo')
+        f1 = sklearn.metrics.f1_score(validation_generator.classes, y_pred, average='micro')
         print(f'AUC = {auc:.10f}')
         print(f'F1 = {f1:.10f}')
 
@@ -350,6 +359,7 @@ class Train:
 
         print(f'Saving model to {args.saved_model_dir}')
         model.save(args.saved_model_dir)
+        df = pd.DataFrame(report).transpose()
         df.to_csv(f'{args.saved_model_dir}/classification_report.csv')
         return TrainOutput(model, image_size, classes, class_size, history, mean, std, best_epoch, validation_generator.classes, pred)
 
