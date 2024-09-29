@@ -1,6 +1,6 @@
 site_name: MBARI Keras Classify
 site_author: Danelle Cline
-repo_url: "https://bitbucket.org/mbari/kclassify"
+repo_url: "https://github.com/mbari-org/kclassify"
 theme:
   name: material
   logo: imgs/mbari-logo.png
